@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import '../../providers/auth_provider.dart';
 import 'login_screen.dart';
 import '../home_screen.dart';
@@ -15,6 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
@@ -23,6 +25,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -35,14 +38,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.register(
+
+      // Start the registration process
+      final registrationFuture = authProvider.register(
         _emailController.text.trim(),
         _passwordController.text.trim(),
         _nameController.text.trim(),
+        _phoneController.text.trim(),
       );
+
+      // Set up a timer to navigate to login page after 10 seconds
+      Timer(const Duration(seconds: 10), () {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const LoginScreen(showSuccessMessage: true),
+            ),
+          );
+        }
+      });
+
+      // Try to complete registration
+      await registrationFuture;
+
       if (!mounted) return;
+
+      // Navigate to login page with success message
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(
+          builder: (_) => const LoginScreen(showSuccessMessage: true),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -75,11 +101,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 children: [
                   // Logo
                   Image.asset(
-                    'assets/images/ecodrop_logo.jpg',
-                    height: 120,
+                    'assets/images/ecodrop_logo.png',
+                    height: 250,
                     fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 1),
                   // Title
                   Text(
                     'Create Account',
@@ -119,6 +145,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       }
                       if (!value.contains('@')) {
                         return 'Please enter a valid email';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  // Phone Number Field
+                  TextFormField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number',
+                      prefixIcon: Icon(Icons.phone),
+                      hintText: 'Enter your 10-digit mobile number',
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your phone number';
+                      }
+                      if (value.length != 10) {
+                        return 'Please enter a valid 10-digit phone number';
+                      }
+                      if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+                        return 'Phone number should contain only digits';
                       }
                       return null;
                     },

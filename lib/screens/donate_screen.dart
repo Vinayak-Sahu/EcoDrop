@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'dart:io';
+import '../models/ngo.dart';
+import '../services/ngo_service.dart';
+import '../providers/profile_provider.dart';
+import '../screens/schedule_ngo_pickup_screen.dart';
 
 class DonateScreen extends StatefulWidget {
   const DonateScreen({super.key});
@@ -15,9 +20,51 @@ class _DonateScreenState extends State<DonateScreen> {
   final _descriptionController = TextEditingController();
   String _selectedCategory = 'Electronics';
   String _selectedCondition = 'Good';
-  String _selectedNGO = 'Tech for Good';
+  String _selectedNGO = '';
   List<File> _images = [];
   final ImagePicker _picker = ImagePicker();
+  final NGOService _ngoService = NGOService();
+  List<NGO> _ngos = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNGOs();
+  }
+
+  Future<void> _loadNGOs() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final userAddress =
+          context.read<ProfileProvider>().profile?.address ?? '';
+      if (userAddress.isNotEmpty) {
+        final ngos = await _ngoService.getNGOsByAddress(userAddress);
+        setState(() {
+          _ngos = ngos;
+          if (ngos.isNotEmpty) {
+            _selectedNGO = ngos.first.id;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load NGOs: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -27,7 +74,32 @@ class _DonateScreenState extends State<DonateScreen> {
   }
 
   Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    // Show dialog to choose source
+    final ImageSource? source = await showDialog<ImageSource>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Image Source'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Camera'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final XFile? image = await _picker.pickImage(source: source);
     if (image != null) {
       setState(() {
         _images.add(File(image.path));
@@ -43,8 +115,29 @@ class _DonateScreenState extends State<DonateScreen> {
 
   void _handleSubmit() {
     if (_formKey.currentState!.validate()) {
-      // TODO: Implement donation logic
-      print('Donating item: ${_titleController.text}');
+      if (_images.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please upload at least one image of the item'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ScheduleNGOPickupScreen(
+            itemTitle: _titleController.text,
+            itemCategory: _selectedCategory,
+            itemCondition: _selectedCondition,
+            itemDescription: _descriptionController.text,
+            ngoId: _selectedNGO,
+            imagePaths: _images.map((file) => file.path).toList(),
+          ),
+        ),
+      );
     }
   }
 
@@ -68,9 +161,18 @@ class _DonateScreenState extends State<DonateScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Item Images',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      Row(
+                        children: [
+                          Text(
+                            'Item Images',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            '*',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
@@ -86,6 +188,17 @@ class _DonateScreenState extends State<DonateScreen> {
                           },
                         ),
                       ),
+                      if (_images.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            'Please upload at least one image',
+                            style: TextStyle(
+                              color: Colors.red[700],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -212,46 +325,64 @@ class _DonateScreenState extends State<DonateScreen> {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        value: _selectedNGO,
-                        decoration: const InputDecoration(
-                          labelText: 'Choose NGO',
-                          border: OutlineInputBorder(),
+                      if (_isLoading)
+                        const Center(child: CircularProgressIndicator())
+                      else if (_ngos.isEmpty)
+                        const Center(
+                          child: Text('No NGOs found in your area'),
+                        )
+                      else
+                        DropdownButtonFormField<String>(
+                          value: _selectedNGO,
+                          decoration: const InputDecoration(
+                            labelText: 'Choose NGO',
+                            border: OutlineInputBorder(),
+                          ),
+                          isExpanded: true,
+                          items: _ngos.map((ngo) {
+                            return DropdownMenuItem(
+                              value: ngo.id,
+                              child: Text(
+                                ngo.name,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedNGO = value!;
+                            });
+                          },
                         ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'Tech for Good',
-                            child: Text('Tech for Good'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Digital Empowerment',
-                            child: Text('Digital Empowerment'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'E-Waste Warriors',
-                            child: Text('E-Waste Warriors'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Green Tech Foundation',
-                            child: Text('Green Tech Foundation'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedNGO = value!;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'About the NGO:',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _getNGODescription(_selectedNGO),
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
+                      if (_selectedNGO.isNotEmpty)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 16),
+                            const Text(
+                              'About the NGO:',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _ngos
+                                  .firstWhere((ngo) => ngo.id == _selectedNGO)
+                                  .description,
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Address: ${_ngos.firstWhere((ngo) => ngo.id == _selectedNGO).address}',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Contact: ${_ngos.firstWhere((ngo) => ngo.id == _selectedNGO).contactNumber}',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
@@ -271,21 +402,6 @@ class _DonateScreenState extends State<DonateScreen> {
         ),
       ),
     );
-  }
-
-  String _getNGODescription(String ngo) {
-    switch (ngo) {
-      case 'Tech for Good':
-        return 'Tech for Good focuses on providing technology education and resources to underprivileged communities.';
-      case 'Digital Empowerment':
-        return 'Digital Empowerment works to bridge the digital divide by providing access to technology and education.';
-      case 'E-Waste Warriors':
-        return 'E-Waste Warriors is dedicated to proper e-waste management and environmental conservation.';
-      case 'Green Tech Foundation':
-        return 'Green Tech Foundation promotes sustainable technology practices and environmental awareness.';
-      default:
-        return '';
-    }
   }
 
   Widget _buildAddImageButton() {

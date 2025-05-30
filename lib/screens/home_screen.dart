@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:temp_app/providers/profile_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart' as auth;
+import '../models/user.dart';
+import '../services/user_service.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
 import 'sell_screen.dart';
@@ -62,218 +64,258 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class HomeContent extends StatelessWidget {
+class HomeContent extends StatefulWidget {
   const HomeContent({super.key});
 
   @override
+  State<HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<HomeContent> {
+  final _userService = UserService();
+  User? _user;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final userId = auth.FirebaseAuth.instance.currentUser?.uid;
+      if (userId != null) {
+        final user = await _userService.getUser(userId);
+        if (mounted) {
+          setState(() {
+            _user = user;
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading user data: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_user == null) {
+      return const Scaffold(
+        body: Center(child: Text('No user data available')),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('EcoDrop'),
       ),
-      body: Consumer<ProfileProvider>(
-        builder: (context, profileProvider, child) {
-          final profile = profileProvider.profile;
-          if (profile == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Welcome Section
+            Text(
+              'Welcome, ${_user!.name}!',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your one-stop solution for e-waste management',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+            ),
+            const SizedBox(height: 24),
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Main Categories
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
               children: [
-                // Welcome Section
-                Text(
-                  'Welcome, ${profile.name}!',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Your one-stop solution for e-waste management',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                ),
-                const SizedBox(height: 24),
-
-                // Main Categories
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  children: [
-                    _buildCategoryCard(
+                _buildCategoryCard(
+                  context,
+                  'Sell E-Waste',
+                  Icons.sell,
+                  Colors.blue,
+                  () {
+                    Navigator.push(
                       context,
-                      'Sell E-Waste',
-                      Icons.sell,
-                      Colors.blue,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SellScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildCategoryCard(
-                      context,
-                      'Donate E-Waste',
-                      Icons.volunteer_activism,
-                      Colors.green,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const DonateScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildCategoryCard(
-                      context,
-                      'Recycle E-Waste',
-                      Icons.recycling,
-                      Colors.orange,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const RecycleScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildCategoryCard(
-                      context,
-                      'My Statistics',
-                      Icons.card_giftcard,
-                      Colors.purple,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const StatsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // E-Waste Education Section
-                Text(
-                  'Learn About E-Waste',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                      MaterialPageRoute(
+                        builder: (context) => const SellScreen(),
                       ),
+                    );
+                  },
                 ),
-                const SizedBox(height: 16),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Why Recycle E-Waste?',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Electronic waste contains harmful materials like lead, mercury, and cadmium that can pollute our environment. By recycling e-waste, we:',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildBulletPoint(
-                            'Protect our environment from toxic materials'),
-                        _buildBulletPoint(
-                            'Recover valuable resources like gold, silver, and copper'),
-                        _buildBulletPoint(
-                            'Reduce the need for mining new materials'),
-                        _buildBulletPoint(
-                            'Create jobs in the recycling industry'),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const EducationScreen(),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.arrow_forward),
-                          label: const Text('Learn More'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Quick Tips Section
-                Text(
-                  'Quick Tips',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                _buildCategoryCard(
+                  context,
+                  'Donate E-Waste',
+                  Icons.volunteer_activism,
+                  Colors.green,
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DonateScreen(),
                       ),
+                    );
+                  },
                 ),
-                const SizedBox(height: 16),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildTipCard(
-                          context,
-                          'Before Recycling',
-                          'Remove batteries and memory cards from devices',
-                          Icons.battery_alert,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildTipCard(
-                          context,
-                          'Data Security',
-                          'Wipe all personal data before recycling',
-                          Icons.security,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildTipCard(
-                          context,
-                          'Proper Disposal',
-                          'Use certified e-waste recycling centers',
-                          Icons.check_circle,
-                        ),
-                      ],
-                    ),
-                  ),
+                _buildCategoryCard(
+                  context,
+                  'Recycle E-Waste',
+                  Icons.recycling,
+                  Colors.orange,
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RecycleScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildCategoryCard(
+                  context,
+                  'My Statistics',
+                  Icons.card_giftcard,
+                  Colors.purple,
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const StatsScreen(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
-          );
-        },
+            const SizedBox(height: 24),
+
+            // E-Waste Education Section
+            Text(
+              'Learn About E-Waste',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Why Recycle E-Waste?',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Electronic waste contains harmful materials like lead, mercury, and cadmium that can pollute our environment. By recycling e-waste, we:',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildBulletPoint(
+                        'Protect our environment from toxic materials'),
+                    _buildBulletPoint(
+                        'Recover valuable resources like gold, silver, and copper'),
+                    _buildBulletPoint(
+                        'Reduce the need for mining new materials'),
+                    _buildBulletPoint('Create jobs in the recycling industry'),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const EducationScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.arrow_forward),
+                      label: const Text('Learn More'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Quick Tips Section
+            Text(
+              'Quick Tips',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildTipCard(
+                      context,
+                      'Before Recycling',
+                      'Remove batteries and memory cards from devices',
+                      Icons.battery_alert,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildTipCard(
+                      context,
+                      'Data Security',
+                      'Wipe all personal data before recycling',
+                      Icons.security,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildTipCard(
+                      context,
+                      'Proper Disposal',
+                      'Use certified e-waste recycling centers',
+                      Icons.check_circle,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

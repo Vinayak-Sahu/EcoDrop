@@ -39,12 +39,11 @@ class _AboutScreenState extends State<AboutScreen> {
             padding: const EdgeInsets.all(24),
             child: Column(
               children: [
-                const Icon(
-                  Icons.recycling,
-                  size: 80,
-                  color: Colors.green,
+                Image.asset(
+                  'assets/images/ecodrop_logo.png',
+                  height: 200,
+                  width: 200,
                 ),
-                const SizedBox(height: 16),
                 const Text(
                   'EcoDrop',
                   style: TextStyle(
@@ -97,126 +96,21 @@ class _AboutScreenState extends State<AboutScreen> {
           ListTile(
             leading: const Icon(Icons.location_on),
             title: const Text('Address'),
-            subtitle: const Text('123 Green Street, Eco City, EC 12345'),
+            subtitle: const Text('2-B, Yamuna Marg, Civil Lines, Delhi-110054'),
           ),
           const Divider(),
 
           ListTile(
             leading: const Icon(Icons.phone),
             title: const Text('Phone'),
-            subtitle: const Text('+1 (555) 123-4567'),
+            subtitle: const Text('+91 8700331039'),
           ),
           const Divider(),
 
           ListTile(
             leading: const Icon(Icons.email),
             title: const Text('Email'),
-            subtitle: const Text('contact@ecodrop.com'),
-          ),
-          const Divider(),
-
-          // Social Media Links
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'Connect With Us',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-
-          ListTile(
-            leading: const Icon(Icons.facebook),
-            title: const Text('Facebook'),
-            subtitle: const Text('@ecodrop'),
-            onTap: () {
-              // TODO: Implement Facebook link
-            },
-          ),
-          const Divider(),
-
-          ListTile(
-            leading: Icon(Icons.alternate_email),
-            title: const Text('Twitter'),
-            subtitle: const Text('@ecodrop'),
-            onTap: () {
-              // TODO: Implement Twitter link
-            },
-          ),
-          const Divider(),
-
-          ListTile(
-            leading: Icon(Icons.camera_alt),
-            title: const Text('Instagram'),
-            subtitle: const Text('@ecodrop'),
-            onTap: () {
-              // TODO: Implement Instagram link
-            },
-          ),
-          const Divider(),
-
-          // Legal Information
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'Legal Information',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-
-          ListTile(
-            title: const Text('Terms of Service'),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () {
-              // TODO: Implement Terms of Service
-            },
-          ),
-          const Divider(),
-
-          ListTile(
-            title: const Text('Privacy Policy'),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () {
-              // TODO: Implement Privacy Policy
-            },
-          ),
-          const Divider(),
-
-          ListTile(
-            title: const Text('Cookie Policy'),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () {
-              // TODO: Implement Cookie Policy
-            },
-          ),
-          const Divider(),
-
-          // Credits
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'Credits',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              '© 2024 EcoDrop Technologies. All rights reserved.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey,
-              ),
-            ),
+            subtitle: const Text('vinayaksahuvs1@gmail.com'),
           ),
         ],
       ),

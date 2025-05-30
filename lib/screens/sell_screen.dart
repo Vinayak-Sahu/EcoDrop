@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'schedule_sell_pickup_screen.dart';
 import 'dart:io';
 
 class SellScreen extends StatefulWidget {
@@ -29,7 +30,32 @@ class _SellScreenState extends State<SellScreen> {
   }
 
   Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    // Show dialog to choose source
+    final ImageSource? source = await showDialog<ImageSource>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Image Source'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Camera'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final XFile? image = await _picker.pickImage(source: source);
     if (image != null) {
       setState(() {
         _images.add(File(image.path));
@@ -45,8 +71,30 @@ class _SellScreenState extends State<SellScreen> {
 
   void _handleSubmit() {
     if (_formKey.currentState!.validate()) {
-      // TODO: Implement item listing logic
-      print('Listing item: ${_titleController.text}');
+      if (_images.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please upload at least one image of the item'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ScheduleSellPickupScreen(
+            itemTitle: _titleController.text,
+            itemCategory: _selectedCategory,
+            itemCondition: _selectedCondition,
+            itemDescription: _descriptionController.text,
+            price: double.parse(_priceController.text),
+            isNegotiable: _isNegotiable,
+            imagePaths: _images.map((file) => file.path).toList(),
+          ),
+        ),
+      );
     }
   }
 
@@ -70,9 +118,18 @@ class _SellScreenState extends State<SellScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Item Images',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      Row(
+                        children: [
+                          Text(
+                            'Item Images',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            '*',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
@@ -88,6 +145,17 @@ class _SellScreenState extends State<SellScreen> {
                           },
                         ),
                       ),
+                      if (_images.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            'Please upload at least one image',
+                            style: TextStyle(
+                              color: Colors.red[700],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

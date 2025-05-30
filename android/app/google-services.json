@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "1089933941703",
-    "project_id": "ecodrop-f1a78",
-    "storage_bucket": "ecodrop-f1a78.firebasestorage.app"
+    "project_number": "88796048204",
+    "project_id": "ecodrop-404ac",
+    "storage_bucket": "ecodrop-404ac.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1089933941703:android:dd6f2bfd45cb678ba917e2",
+        "mobilesdk_app_id": "1:88796048204:android:af71f7d6670f78e86e7de9",
         "android_client_info": {
-          "package_name": "com.example.temp_app"
+          "package_name": "com.example.ecodrop"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBA3JPf4dvMYV4edqRGHilw19vdAkumYD8"
+          "current_key": "AIzaSyAwgkwdDC2txmiUYz8-zsQLMUMLZqvwiQE"
         }
       ],
       "services": {

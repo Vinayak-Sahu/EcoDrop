@@ -5,6 +5,7 @@ class UserProfile {
   final String gender;
   final DateTime dateOfBirth;
   final String? profileImageUrl;
+  final String address;
 
   UserProfile({
     required this.name,
@@ -12,6 +13,7 @@ class UserProfile {
     required this.phone,
     required this.gender,
     required this.dateOfBirth,
+    required this.address,
     this.profileImageUrl,
   });
 
@@ -22,6 +24,7 @@ class UserProfile {
     String? gender,
     DateTime? dateOfBirth,
     String? profileImageUrl,
+    String? address,
   }) {
     return UserProfile(
       name: name ?? this.name,
@@ -30,6 +33,7 @@ class UserProfile {
       gender: gender ?? this.gender,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      address: address ?? this.address,
     );
   }
 }

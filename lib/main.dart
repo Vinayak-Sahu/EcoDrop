@@ -8,12 +8,14 @@ import 'providers/activity_provider.dart';
 import 'providers/profile_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
+import 'services/firebase_service.dart';
+import 'services/user_service.dart';
+import 'screens/auth/login_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await FirebaseService.initialize();
   runApp(const MyApp());
 }
 
@@ -27,13 +29,23 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()..init()),
         ChangeNotifierProvider(create: (_) => ActivityProvider()),
         ChangeNotifierProvider(
-            create: (_) => ProfileProvider()..initializeProfile()),
+          create: (_) {
+            final provider = ProfileProvider();
+            provider
+                .initializeProfile(); // This is now async but we don't need to await here
+            return provider;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        Provider<UserService>(
+          create: (_) => UserService(),
+        ),
       ],
       builder: (context, child) {
         final themeProvider = Provider.of<ThemeProvider>(context);
         return MaterialApp(
           title: 'E-Waste Management',
+          debugShowCheckedModeBanner: false,
           theme: ThemeData(
             scaffoldBackgroundColor: const Color(0xFFF6FDF7),
             colorScheme: ColorScheme.fromSeed(
@@ -72,9 +84,13 @@ class MyApp extends StatelessWidget {
           darkTheme: themeProvider.currentTheme,
           themeMode:
               themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          home: const HomeScreen(),
+          home: const SplashScreen(),
         );
       },
     );
   }
+}
+
+Future<void> main() async {
+  await dotenv.load(fileName: ".env");
 }

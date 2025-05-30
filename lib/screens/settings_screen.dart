@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:temp_app/screens/settings/privacy_security_screen.dart';
 import '../providers/theme_provider.dart';
 import 'settings/profile_settings_screen.dart';
-import 'settings/privacy_settings_screen.dart';
 import 'settings/help_support_screen.dart';
 import 'settings/about_screen.dart';
 
@@ -15,64 +15,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
-  String _selectedLanguage = 'English';
-  String _selectedCurrency = '₹ (INR)';
-
-  void _showLanguageDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Language'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('English'),
-              onTap: () {
-                setState(() => _selectedLanguage = 'English');
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              title: const Text('Hindi'),
-              onTap: () {
-                setState(() => _selectedLanguage = 'Hindi');
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showCurrencyDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Currency'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('₹ (INR)'),
-              onTap: () {
-                setState(() => _selectedCurrency = '₹ (INR)');
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              title: const Text('\$ (USD)'),
-              onTap: () {
-                setState(() => _selectedCurrency = '\$ (USD)');
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const PrivacySettingsScreen(),
+                        builder: (context) => const PrivacySecurityScreen(),
                       ),
                     );
                   },
@@ -138,22 +80,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                 ),
-                _buildSettingTile(
-                  icon: Icons.language,
-                  title: 'Language',
-                  subtitle: _selectedLanguage,
-                  onTap: () {
-                    _showLanguageDialog();
-                  },
-                ),
-                _buildSettingTile(
-                  icon: Icons.attach_money,
-                  title: 'Currency',
-                  subtitle: _selectedCurrency,
-                  onTap: () {
-                    _showCurrencyDialog();
-                  },
-                ),
               ],
             ),
             _buildSection(
@@ -180,31 +106,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       MaterialPageRoute(
                         builder: (context) => const AboutScreen(),
                       ),
-                    );
-                  },
-                ),
-              ],
-            ),
-            _buildSection(
-              'Legal',
-              [
-                _buildSettingTile(
-                  icon: Icons.description_outlined,
-                  title: 'Terms of Service',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Terms of Service coming soon')),
-                    );
-                  },
-                ),
-                _buildSettingTile(
-                  icon: Icons.privacy_tip_outlined,
-                  title: 'Privacy Policy',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Privacy Policy coming soon')),
                     );
                   },
                 ),

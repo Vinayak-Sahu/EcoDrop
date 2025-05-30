@@ -5,7 +5,12 @@ import 'register_screen.dart';
 import '../home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final bool showSuccessMessage;
+
+  const LoginScreen({
+    super.key,
+    this.showSuccessMessage = false,
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -16,6 +21,22 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showSuccessMessage) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User registered successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -41,10 +62,35 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } catch (e) {
       if (!mounted) return;
+
+      String errorMessage;
+      if (e.toString().contains('user-not-found')) {
+        errorMessage =
+            'No account found with this email. Please register first.';
+      } else if (e.toString().contains('wrong-password')) {
+        errorMessage = 'Incorrect password. Please try again.';
+      } else if (e.toString().contains('invalid-email')) {
+        errorMessage = 'Invalid email format. Please check your email.';
+      } else if (e.toString().contains('too-many-requests')) {
+        errorMessage = 'Too many failed attempts. Please try again later.';
+      } else {
+        errorMessage = 'An error occurred. Please try again.';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString()),
+          content: Text(errorMessage),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Register',
+            textColor: Colors.white,
+            onPressed: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const RegisterScreen()),
+              );
+            },
+          ),
         ),
       );
     } finally {
@@ -71,10 +117,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Logo
                   Image.asset(
                     'assets/images/ecodrop_logo.png',
-                    height: 120,
+                    height: 300,
                     fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 5),
                   // Title
                   Text(
                     'Welcome Back',

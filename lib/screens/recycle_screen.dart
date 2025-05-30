@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'dart:io';
+import '../models/recycling_center.dart';
+import '../services/recycling_center_service.dart';
+import '../providers/profile_provider.dart';
+import 'schedule_recycle_pickup_screen.dart';
 
 class RecycleScreen extends StatefulWidget {
   const RecycleScreen({super.key});
@@ -10,91 +16,131 @@ class RecycleScreen extends StatefulWidget {
 
 class _RecycleScreenState extends State<RecycleScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _weightController = TextEditingController();
   String _selectedCategory = 'Electronics';
-  String _selectedQuantity = '1-2 items';
-  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
-  TimeOfDay _selectedTime = const TimeOfDay(hour: 9, minute: 0);
-  GoogleMapController? _mapController;
-  final Set<Marker> _markers = {};
-  final List<RecyclingCenter> _recyclingCenters = [
-    RecyclingCenter(
-      name: 'Green Earth Recycling',
-      address: '123 Eco Street, City',
-      rating: 4.5,
-      distance: '2.5 km',
-      position: const LatLng(20.5937, 78.9629),
-      categories: ['Electronics', 'Computers', 'Mobile Devices'],
-    ),
-    RecyclingCenter(
-      name: 'E-Waste Solutions',
-      address: '456 Green Avenue, City',
-      rating: 4.2,
-      distance: '3.8 km',
-      position: const LatLng(20.5937, 78.9629),
-      categories: ['Electronics', 'Accessories'],
-    ),
-    RecyclingCenter(
-      name: 'Tech Recycle Hub',
-      address: '789 Sustainable Road, City',
-      rating: 4.7,
-      distance: '5.1 km',
-      position: const LatLng(20.5937, 78.9629),
-      categories: ['Computers', 'Mobile Devices', 'Accessories'],
-    ),
-  ];
+  String _selectedCondition = 'Good';
+  String _selectedCenter = '';
+  List<File> _images = [];
+  final ImagePicker _picker = ImagePicker();
+  final RecyclingCenterService _recyclingService = RecyclingCenterService();
+  List<RecyclingCenter> _centers = [];
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _updateMarkers();
+    _loadRecyclingCenters();
   }
 
-  void _updateMarkers() {
-    _markers.clear();
-    for (var center in _recyclingCenters) {
-      _markers.add(
-        Marker(
-          markerId: MarkerId(center.name),
-          position: center.position,
-          infoWindow: InfoWindow(
-            title: center.name,
-            snippet: center.address,
+  Future<void> _loadRecyclingCenters() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final userAddress =
+          context.read<ProfileProvider>().profile?.address ?? '';
+      if (userAddress.isNotEmpty) {
+        final centers =
+            await _recyclingService.getRecyclingCentersByAddress(userAddress);
+        setState(() {
+          _centers = centers;
+          if (centers.isNotEmpty) {
+            _selectedCenter = centers.first.id;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load recycling centers: $e'),
+            backgroundColor: Colors.red,
           ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _weightController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    // Show dialog to choose source
+    final ImageSource? source = await showDialog<ImageSource>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Image Source'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Camera'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
         ),
-      );
-    }
-  }
-
-  Future<void> _selectDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
+      ),
     );
-    if (picked != null && picked != _selectedDate) {
+
+    if (source == null) return;
+
+    final XFile? image = await _picker.pickImage(source: source);
+    if (image != null) {
       setState(() {
-        _selectedDate = picked;
+        _images.add(File(image.path));
       });
     }
   }
 
-  Future<void> _selectTime() async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime,
-    );
-    if (picked != null && picked != _selectedTime) {
-      setState(() {
-        _selectedTime = picked;
-      });
-    }
+  void _removeImage(int index) {
+    setState(() {
+      _images.removeAt(index);
+    });
   }
 
   void _handleSubmit() {
     if (_formKey.currentState!.validate()) {
-      // TODO: Implement recycling pickup scheduling
-      print('Scheduling pickup for: ${_selectedDate.toString()}');
+      if (_images.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please upload at least one image of the item'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ScheduleRecyclePickupScreen(
+            itemTitle: _titleController.text,
+            itemCategory: _selectedCategory,
+            itemCondition: _selectedCondition,
+            itemDescription: _descriptionController.text,
+            itemWeight: _weightController.text,
+            imagePaths: _images.map((file) => file.path).toList(),
+          ),
+        ),
+      );
     }
   }
 
@@ -111,81 +157,58 @@ class _RecycleScreenState extends State<RecycleScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Map Section
-              Card(
-                child: SizedBox(
-                  height: 200,
-                  child: GoogleMap(
-                    initialCameraPosition: const CameraPosition(
-                      target: LatLng(20.5937, 78.9629),
-                      zoom: 12,
-                    ),
-                    markers: _markers,
-                    onMapCreated: (controller) {
-                      _mapController = controller;
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Recycling Centers List
+              // Image Upload Section
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Nearby Recycling Centers',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      Row(
+                        children: [
+                          Text(
+                            'Item Images',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            '*',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _recyclingCenters.length,
-                        itemBuilder: (context, index) {
-                          final center = _recyclingCenters[index];
-                          return ListTile(
-                            leading: const CircleAvatar(
-                              child: Icon(Icons.recycling),
-                            ),
-                            title: Text(center.name),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(center.address),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.star,
-                                      size: 16,
-                                      color: Colors.amber[700],
-                                    ),
-                                    Text(' ${center.rating}'),
-                                    const SizedBox(width: 16),
-                                    Text('${center.distance} away'),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            trailing: ElevatedButton(
-                              onPressed: () {
-                                // TODO: Navigate to center details
-                              },
-                              child: const Text('Select'),
-                            ),
-                          );
-                        },
+                      SizedBox(
+                        height: 120,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _images.length + 1,
+                          itemBuilder: (context, index) {
+                            if (index == _images.length) {
+                              return _buildAddImageButton();
+                            }
+                            return _buildImagePreview(index);
+                          },
+                        ),
                       ),
+                      if (_images.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            'Please upload at least one image',
+                            style: TextStyle(
+                              color: Colors.red[700],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 16),
 
-              // Pickup Details Section
+              // Item Details Section
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -193,14 +216,28 @@ class _RecycleScreenState extends State<RecycleScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Pickup Details',
+                        'Item Details',
                         style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(
+                          labelText: 'Item Title',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a title';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
                         value: _selectedCategory,
                         decoration: const InputDecoration(
-                          labelText: 'E-Waste Category',
+                          labelText: 'Category',
                           border: OutlineInputBorder(),
                         ),
                         items: const [
@@ -229,50 +266,166 @@ class _RecycleScreenState extends State<RecycleScreen> {
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: _selectedQuantity,
+                        value: _selectedCondition,
                         decoration: const InputDecoration(
-                          labelText: 'Quantity',
+                          labelText: 'Condition',
                           border: OutlineInputBorder(),
                         ),
                         items: const [
                           DropdownMenuItem(
-                            value: '1-2 items',
-                            child: Text('1-2 items'),
+                            value: 'Excellent',
+                            child: Text('Excellent'),
                           ),
                           DropdownMenuItem(
-                            value: '3-5 items',
-                            child: Text('3-5 items'),
+                            value: 'Good',
+                            child: Text('Good'),
                           ),
                           DropdownMenuItem(
-                            value: '6-10 items',
-                            child: Text('6-10 items'),
+                            value: 'Fair',
+                            child: Text('Fair'),
                           ),
                           DropdownMenuItem(
-                            value: 'More than 10 items',
-                            child: Text('More than 10 items'),
+                            value: 'Poor',
+                            child: Text('Poor'),
                           ),
                         ],
                         onChanged: (value) {
                           setState(() {
-                            _selectedQuantity = value!;
+                            _selectedCondition = value!;
                           });
                         },
                       ),
                       const SizedBox(height: 16),
-                      ListTile(
-                        title: const Text('Pickup Date'),
-                        subtitle: Text(
-                          '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                      TextFormField(
+                        controller: _weightController,
+                        decoration: const InputDecoration(
+                          labelText: 'Weight (kg)',
+                          border: OutlineInputBorder(),
                         ),
-                        trailing: const Icon(Icons.calendar_today),
-                        onTap: _selectDate,
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter the weight';
+                          }
+                          if (double.tryParse(value) == null) {
+                            return 'Please enter a valid weight';
+                          }
+                          return null;
+                        },
                       ),
-                      ListTile(
-                        title: const Text('Pickup Time'),
-                        subtitle: Text(_selectedTime.format(context)),
-                        trailing: const Icon(Icons.access_time),
-                        onTap: _selectTime,
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _descriptionController,
+                        decoration: const InputDecoration(
+                          labelText: 'Description',
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 3,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a description';
+                          }
+                          return null;
+                        },
                       ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Recycling Center Selection Section
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Select Recycling Center',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      if (_isLoading)
+                        const Center(child: CircularProgressIndicator())
+                      else if (_centers.isEmpty)
+                        const Center(
+                          child:
+                              Text('No recycling centers found in your area'),
+                        )
+                      else
+                        DropdownButtonFormField<String>(
+                          value: _selectedCenter,
+                          decoration: const InputDecoration(
+                            labelText: 'Choose Recycling Center',
+                            border: OutlineInputBorder(),
+                          ),
+                          isExpanded: true,
+                          items: _centers.map((center) {
+                            return DropdownMenuItem(
+                              value: center.id,
+                              child: Text(
+                                center.name,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedCenter = value!;
+                            });
+                          },
+                        ),
+                      if (_selectedCenter.isNotEmpty)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 16),
+                            const Text(
+                              'About the Recycling Center:',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _centers
+                                  .firstWhere(
+                                      (center) => center.id == _selectedCenter)
+                                  .description,
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Address: ${_centers.firstWhere((center) => center.id == _selectedCenter).address}',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Contact: ${_centers.firstWhere((center) => center.id == _selectedCenter).contactNumber}',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Operating Hours: ${_centers.firstWhere((center) => center.id == _selectedCenter).operatingHours}',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.star,
+                                  color: Colors.amber[700],
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${_centers.firstWhere((center) => center.id == _selectedCenter).rating}',
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
@@ -293,22 +446,57 @@ class _RecycleScreenState extends State<RecycleScreen> {
       ),
     );
   }
-}
 
-class RecyclingCenter {
-  final String name;
-  final String address;
-  final double rating;
-  final String distance;
-  final LatLng position;
-  final List<String> categories;
+  Widget _buildAddImageButton() {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: InkWell(
+        onTap: _pickImage,
+        child: Container(
+          width: 120,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add_photo_alternate, size: 40),
+              SizedBox(height: 8),
+              Text('Add Image'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-  RecyclingCenter({
-    required this.name,
-    required this.address,
-    required this.rating,
-    required this.distance,
-    required this.position,
-    required this.categories,
-  });
+  Widget _buildImagePreview(int index) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: Stack(
+        children: [
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              image: DecorationImage(
+                image: FileImage(_images[index]),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 4,
+            right: 12,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: () => _removeImage(index),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
