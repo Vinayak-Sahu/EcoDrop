@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo.png" alt="EcoDrop Logo" width="120"/>
+  <img src="logo.png" alt="EcoDrop Logo" width="400"/>
   <h1>🌿 EcoDrop</h1>
   <p><i>Recycle. Donate. Sell. Reward.</i></p>
 </div>
@@ -38,9 +38,17 @@ EcoDrop is a **cross-platform mobile app** built using **Flutter** that allows u
 > Replace with your app screenshots
 
 <p float="left">
-  <img src="screenshots/home.png" width="200"/>
-  <img src="screenshots/listing.png" width="200"/>
-  <img src="screenshots/rewards.png" width="200"/>
+  <img src="Screenshot_1746528207.png" width="200"/>
+  <img src="Screenshot_1746528214.png" width="200"/>
+  <img src="Screenshot_1746528286.png" width="200"/>
+   <img src="Screenshot_1746528292.png" width="200"/>
+  <img src="Screenshot_1746528314.png" width="200"/>
+  <img src="Screenshot_1746528340.png" width="200"/>
+   <img src="Screenshot_1746528348.png" width="200"/>
+  <img src="Screenshot_1746528362.png" width="200"/>
+  <img src="Screenshot_1746528378.png" width="200"/>
+   <img src="Screenshot_1746528474.png" width="200"/>
+  <img src="Screenshot_1746528503.png" width="200"/>
 </p>
 
 ---
